@@ -37,8 +37,8 @@ func addFile(tw *tar.Writer, path string) error {
 	return nil
 }
 
-func computeMd5(filePath string) ([]byte, error) {
-	var result []byte
+func computeMd5(filePath string) (string, error) {
+	var result string
 	file, err := os.Open(filePath)
 	if err != nil {
 		return result, err
@@ -50,13 +50,23 @@ func computeMd5(filePath string) ([]byte, error) {
 		log.Fatal(err)
 	}
 
-	result = h.Sum(nil)
+	checksum := h.Sum(nil)
+
+	result = hex.EncodeToString(checksum)
 
 	return result, nil
 }
 
-func convertHashToString(hash []byte) string {
-	return hex.EncodeToString(hash[:16])
+func createCheckSum(filename string, hash string) error {
+	checksumFile, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer checksumFile.Close()
+
+	checksumFile.WriteString(hash)
+
+	return nil
 }
 
 func main() {
@@ -87,19 +97,14 @@ func main() {
 	gw.Close()
 	file.Close()
 
-	if b, err := computeMd5(fmt.Sprintf("%v.tar.gz", filename)); err != nil {
-		fmt.Printf("Err: %v", err)
+	if hash, err := computeMd5(fmt.Sprintf("%v.tar.gz", filename)); err != nil {
+		fmt.Printf("Error getting md5 sum: %v", err)
 	} else {
-		checksumFile, err := os.Create(fmt.Sprintf("%v.md5", filename))
+		err := createCheckSum(fmt.Sprintf("%v.md5", filename), hash)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		defer checksumFile.Close()
 
-		hash := convertHashToString(b)
-
-		checksumFile.WriteString(hash)
-
-		log.Printf("Backup created with filename %v.tar.gz, and checksum %v", filename, hash)
+		log.Printf("Backup created with filename %v and checksum %v", filename, hash)
 	}
 }
