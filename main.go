@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -17,23 +18,56 @@ func addFile(tw *tar.Writer, path string) error {
 	if err != nil {
 		return err
 	}
+
 	defer file.Close()
-	if stat, err := file.Stat(); err == nil {
-		// now lets create the header as needed for this file within the tarball
-		header := new(tar.Header)
-		header.Name = path
-		header.Size = stat.Size()
-		header.Mode = int64(stat.Mode())
-		header.ModTime = stat.ModTime()
-		// write the header to the tarball archive
-		if err := tw.WriteHeader(header); err != nil {
-			return err
-		}
-		// copy the file data to the tarball
-		if _, err := io.Copy(tw, file); err != nil {
-			return err
-		}
+
+	fi, err := os.Lstat(path)
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	switch mode := fi.Mode(); {
+	case mode.IsRegular():
+		log.Printf("Adding file %v", path)
+
+		if stat, err := file.Stat(); err == nil {
+			// now lets create the header as needed for this file within the tarball
+			header := new(tar.Header)
+			header.Name = path
+			header.Size = stat.Size()
+			header.Mode = int64(stat.Mode())
+			header.ModTime = stat.ModTime()
+			// write the header to the tarball archive
+			if err := tw.WriteHeader(header); err != nil {
+				return err
+			}
+			// copy the file data to the tarball
+			if _, err := io.Copy(tw, file); err != nil {
+				return err
+			}
+		}
+
+	case mode.IsDir():
+		filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				return nil
+			}
+			addFile(tw, filePath)
+			return nil
+		})
+
+		return nil
+	case mode&os.ModeSymlink != 0:
+		log.Printf("Not adding %v - it's a symbolic link", path)
+		return nil
+	case mode&os.ModeNamedPipe != 0:
+		log.Printf("Not adding %v - it's a named pipe", path)
+		return nil
+	}
+
 	return nil
 }
 
