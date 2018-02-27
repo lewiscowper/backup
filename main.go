@@ -105,8 +105,7 @@ func main() {
 
 	archiveFilename, checksumFilename := getFilenames("backup")
 
-	err := createArchive(files, archiveFilename)
-	if err != nil {
+	if err := createArchive(files, archiveFilename); err != nil {
 		log.Fatalln(err)
 	}
 
