@@ -1,2 +1,2 @@
-backup-*.md5
-backup-*.tar.gz
+*.md5
+*.tar.gz
