@@ -151,6 +151,6 @@ func main() {
 			log.Fatalln(err)
 		}
 
-		log.Printf("Backup created at: %v", archiveFilename)
+		log.Printf("Backup saved to: %v", archiveFilename)
 	}
 }
