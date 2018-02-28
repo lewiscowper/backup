@@ -6,8 +6,8 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -28,7 +28,9 @@ func addFile(tw *tar.Writer, path string) error {
 
 	switch mode := fi.Mode(); {
 	case mode.IsRegular():
-		log.Printf("Adding file %v", path)
+		log.WithFields(log.Fields{
+			"file": path,
+		}).Info("Adding file")
 
 		if stat, err := file.Stat(); err == nil {
 			// now lets create the header as needed for this file within the tarball
@@ -61,10 +63,14 @@ func addFile(tw *tar.Writer, path string) error {
 
 		return nil
 	case mode&os.ModeSymlink != 0:
-		log.Printf("Not adding %v - it's a symbolic link", path)
+		log.WithFields(log.Fields{
+			"file": path,
+		}).Info("Not adding file, it's a symbolic link")
 		return nil
 	case mode&os.ModeNamedPipe != 0:
-		log.Printf("Not adding %v - it's a named pipe", path)
+		log.WithFields(log.Fields{
+			"file": path,
+		}).Info("Not adding file, it's a named pipe")
 		return nil
 	}
 
@@ -140,17 +146,25 @@ func main() {
 	archiveFilename, checksumFilename := getFilenames("backup")
 
 	if err := createArchive(files, archiveFilename); err != nil {
-		log.Fatalln(err)
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Fatal("Error creating archive")
 	}
 
 	if hash, err := computeMd5(archiveFilename); err != nil {
-		fmt.Printf("Error getting md5 sum: %v", err)
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Fatal("Error getting checksum")
 	} else {
 		err := createCheckSum(checksumFilename, hash)
 		if err != nil {
-			log.Fatalln(err)
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Fatal("Error creating checksum file")
 		}
 
-		log.Printf("Backup saved to: %v", archiveFilename)
+		log.WithFields(log.Fields{
+			"filename": archiveFilename,
+		}).Info("Created archive")
 	}
 }
