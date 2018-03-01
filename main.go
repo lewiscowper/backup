@@ -3,7 +3,7 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
-	"crypto/md5"
+	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -77,7 +77,7 @@ func addFile(tw *tar.Writer, path string) error {
 	return nil
 }
 
-func computeMd5(filePath string) (string, error) {
+func computeSha512(filePath string) (string, error) {
 	var result string
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -85,7 +85,7 @@ func computeMd5(filePath string) (string, error) {
 	}
 	defer file.Close()
 
-	h := md5.New()
+	h := sha512.New()
 	if _, err := io.Copy(h, file); err != nil {
 		return result, err
 	}
@@ -135,7 +135,7 @@ func getFilenames(prefix string) (archiveFilename string, checksumFilename strin
 	filename := fmt.Sprintf("%v-%v", prefix, currentTime)
 
 	archiveFilename = fmt.Sprintf("%v.tar.gz", filename)
-	checksumFilename = fmt.Sprintf("%v.md5", filename)
+	checksumFilename = fmt.Sprintf("%v.sha512", filename)
 
 	return archiveFilename, checksumFilename
 }
@@ -151,7 +151,7 @@ func main() {
 		}).Fatal("Error creating archive")
 	}
 
-	if hash, err := computeMd5(archiveFilename); err != nil {
+	if hash, err := computeSha512(archiveFilename); err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
 		}).Fatal("Error getting checksum")
