@@ -7,9 +7,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/ssh/terminal"
 	"io"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 )
 
@@ -109,14 +112,22 @@ func createCheckSum(filename string, hash string) error {
 	return nil
 }
 
-func createArchive(files []string, archiveFilename string) error {
+func createArchive(files []string, archiveFilename string, password []byte) error {
 	file, err := os.Create(archiveFilename)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	gw := gzip.NewWriter(file)
+	pgpw, err := openpgp.SymmetricallyEncrypt(file, password, &openpgp.FileHints{IsBinary: true}, nil)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Fatal("Error encrypting with pgp")
+	}
+	defer pgpw.Close()
+
+	gw := gzip.NewWriter(pgpw)
 	defer gw.Close()
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
@@ -140,12 +151,29 @@ func getFilenames(prefix string) (archiveFilename string, checksumFilename strin
 	return archiveFilename, checksumFilename
 }
 
+func credentials() ([]byte, error) {
+	fmt.Print("Enter password for archive encryption: ")
+	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Print("\n")
+
+	return bytePassword, nil
+}
+
 func main() {
 	files := os.Args[1:]
 
 	archiveFilename, checksumFilename := getFilenames("backup")
 
-	if err := createArchive(files, archiveFilename); err != nil {
+	password, err := credentials()
+	if err != nil {
+		log.Fatal("Error capturing password")
+	}
+
+	if err := createArchive(files, archiveFilename, password); err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
 		}).Fatal("Error creating archive")
