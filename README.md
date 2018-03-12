@@ -18,4 +18,4 @@ experiment for the author to understand more about Go.
 
 ---
 
-Right now, backup creates a tar.gz and an md5 of that archive. Nothing more.
+Right now, backup creates a symmetrically encrypted .tar.gz archive and a sha512 checksum. Nothing more.
