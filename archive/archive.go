@@ -84,9 +84,7 @@ func Create(files []string, archiveFilename string, password []byte) error {
 
 	pgpw, err := openpgp.SymmetricallyEncrypt(file, password, &openpgp.FileHints{IsBinary: true}, nil)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Fatal("Error encrypting with pgp")
+		return err
 	}
 	defer pgpw.Close()
 
